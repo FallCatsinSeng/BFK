@@ -19,7 +19,8 @@ class _FixBookingScreenState extends State<FixBookingScreen> {
   int? _selectedDay = 27;
 
   void _onVerify() {
-    Navigator.pushNamed(context, '/face-verify', arguments: widget.room);
+    // Skip face verify — go directly to OTP success (booking confirmed)
+    Navigator.pushNamed(context, '/otp');
   }
 
   @override

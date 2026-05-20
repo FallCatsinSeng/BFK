@@ -39,9 +39,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final success = await auth.login(username, password);
     if (success && mounted) {
-      // Send OTP after login
-      await auth.sendOtp();
-      Navigator.pushReplacementNamed(context, '/otp');
+      // Skip OTP — go directly to home for now
+      Navigator.pushReplacementNamed(context, '/home');
     } else if (mounted && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(auth.error!)),
@@ -54,8 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     await auth.login('user', 'password123');
     if (mounted) {
-      await auth.sendOtp();
-      Navigator.pushReplacementNamed(context, '/otp');
+      // Skip OTP — go directly to home for now
+      Navigator.pushReplacementNamed(context, '/home');
     }
   }
 
