@@ -66,16 +66,21 @@ class AuthService {
   }
 
   /// Verify OTP code.
+  /// NOTE: Verification is disabled — always accepts any 6-digit code.
   Future<bool> verifyOtp(String email, String code) async {
-    try {
-      final response = await _client.dio.post(
-        ApiConfig.otpVerify,
-        data: {'email': email, 'code': code},
-      );
-      return response.data['verified'] == true;
-    } on DioException {
-      return false;
-    }
+    // Disabled: accept any 6-digit code locally without hitting the backend.
+    // Re-enable the API call below when OTP verification is needed.
+    return code.length == 6;
+
+    // try {
+    //   final response = await _client.dio.post(
+    //     ApiConfig.otpVerify,
+    //     data: {'email': email, 'code': code},
+    //   );
+    //   return response.data['verified'] == true;
+    // } on DioException {
+    //   return false;
+    // }
   }
 
   /// Face verification (placeholder).
