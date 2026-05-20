@@ -66,26 +66,32 @@ func (s *OTPService) SendOTP(email string) error {
 }
 
 // VerifyOTP validates the OTP code for a given email.
+// NOTE: Verification is currently DISABLED — any 6-digit code is accepted.
+// To re-enable, remove the early return below.
 func (s *OTPService) VerifyOTP(email, code string) (bool, error) {
-	if s.db == nil {
-		// Development mode: accept any 6-digit code
-		return len(code) == 6, nil
-	}
+	// === VERIFICATION DISABLED ===
+	// Accept any 6-digit code without checking the database.
+	log.Printf("[OTP] Verification DISABLED — auto-accepting code %s for %s", code, email)
+	return len(code) == 6, nil
+	// === END DISABLED BLOCK ===
 
-	var id string
-	err := s.db.QueryRow(`
-		SELECT id FROM otp_codes
-		WHERE email = $1 AND code = $2 AND used = false AND expires_at > NOW()
-		ORDER BY created_at DESC LIMIT 1`, email, code).Scan(&id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-		return false, err
-	}
-
-	// Mark as used
-	_, _ = s.db.Exec(`UPDATE otp_codes SET used = true WHERE id = $1`, id)
-
-	return true, nil
+	// --- Original verification logic (re-enable when ready) ---
+	// if s.db == nil {
+	// 	return len(code) == 6, nil
+	// }
+	//
+	// var id string
+	// err := s.db.QueryRow(`
+	// 	SELECT id FROM otp_codes
+	// 	WHERE email = $1 AND code = $2 AND used = false AND expires_at > NOW()
+	// 	ORDER BY created_at DESC LIMIT 1`, email, code).Scan(&id)
+	// if err != nil {
+	// 	if err == sql.ErrNoRows {
+	// 		return false, nil
+	// 	}
+	// 	return false, err
+	// }
+	//
+	// _, _ = s.db.Exec(`UPDATE otp_codes SET used = true WHERE id = $1`, id)
+	// return true, nil
 }
