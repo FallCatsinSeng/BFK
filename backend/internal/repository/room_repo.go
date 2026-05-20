@@ -67,10 +67,11 @@ func (r *RoomRepository) FindAll(filter models.RoomFilter) ([]models.RoomWithSta
 			status = "booked"
 		}
 
-		// Get first available time slot
+		// Get first available time slot (formatted as "9:00 AM - 11:00 AM")
 		timeSlot := ""
 		r.db.QueryRow(`
-			SELECT start_time || ' - ' || end_time FROM time_slots
+			SELECT TO_CHAR(start_time, 'HH:MI AM') || ' - ' || TO_CHAR(end_time, 'HH:MI AM') 
+			FROM time_slots
 			WHERE room_id = $1
 			ORDER BY start_time LIMIT 1`, room.ID).Scan(&timeSlot)
 

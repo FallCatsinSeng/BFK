@@ -64,6 +64,10 @@ class BookingService {
   }
 
   Booking _parseBooking(Map<String, dynamic> json) {
+    final startTime = _formatTime(json['start_time'] ?? '');
+    final endTime = _formatTime(json['end_time'] ?? '');
+    final timeSlot = '$startTime - $endTime';
+
     return Booking(
       id: json['id'] ?? '',
       room: Room(
@@ -71,17 +75,32 @@ class BookingService {
         name: json['room_name'] ?? '',
         type: _parseRoomType(json['room_type']),
         status: RoomStatus.booked,
-        timeSlot: '${json['start_time'] ?? ''} - ${json['end_time'] ?? ''}',
+        timeSlot: timeSlot,
         description: '',
         location: json['room_location'] ?? '',
         date: DateTime.tryParse(json['booking_date'] ?? '') ?? DateTime.now(),
         imageUrl: json['room_image_url'],
       ),
       bookingDate: DateTime.tryParse(json['booking_date'] ?? '') ?? DateTime.now(),
-      timeSlot: '${json['start_time'] ?? ''} - ${json['end_time'] ?? ''}',
+      timeSlot: timeSlot,
       status: _parseBookingStatus(json['status']),
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
+  }
+
+  /// Format "09:00:00" or "09:00" to "9:00 AM"
+  String _formatTime(String raw) {
+    try {
+      final parts = raw.split(':');
+      var hour = int.parse(parts[0]);
+      final min = int.parse(parts[1]);
+      final period = hour >= 12 ? 'PM' : 'AM';
+      if (hour > 12) hour -= 12;
+      if (hour == 0) hour = 12;
+      return '$hour:${min.toString().padLeft(2, '0')} $period';
+    } catch (_) {
+      return raw;
+    }
   }
 
   RoomType _parseRoomType(String? type) {
