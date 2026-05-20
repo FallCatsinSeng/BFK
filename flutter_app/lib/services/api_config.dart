@@ -1,13 +1,24 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// API configuration constants.
-/// Change [baseUrl] to match your backend deployment.
+/// Automatically detects the correct base URL based on platform.
 class ApiConfig {
   ApiConfig._();
 
   /// Base URL for the Go backend.
+  /// - Flutter Web: http://localhost:8080
   /// - Android Emulator: http://10.0.2.2:8080
-  /// - iOS Simulator / Physical device on same network: http://<your-ip>:8080
-  /// - Docker (same machine): http://localhost:8080
-  static const String baseUrl = 'http://10.0.2.2:8080';
+  /// - Others: http://localhost:8080
+  ///
+  /// Override this if your backend runs on a different host/port.
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:8080';
+    }
+    // For mobile, default to Android emulator address.
+    // Change to your machine's IP for physical devices.
+    return 'http://10.0.2.2:8080';
+  }
 
   /// API version prefix.
   static const String apiV1 = '/api/v1';
