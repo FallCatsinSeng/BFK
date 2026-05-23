@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'models/models.dart';
+import 'providers/providers.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/otp_screen.dart';
@@ -32,12 +34,19 @@ class BFKApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'BFK Room Booking',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      initialRoute: '/',
-      onGenerateRoute: _onGenerateRoute,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+        ChangeNotifierProvider(create: (_) => RoomProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
+      ],
+      child: MaterialApp(
+        title: 'BFK Room Booking',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        initialRoute: '/',
+        onGenerateRoute: _onGenerateRoute,
+      ),
     );
   }
 
@@ -68,7 +77,7 @@ class BFKApp extends StatelessWidget {
     }
   }
 
-  Route<dynamic> _buildRoute(Widget page, RouteSettings settings) {
+  static Route<dynamic> _buildRoute(Widget page, RouteSettings settings) {
     return MaterialPageRoute(
       builder: (_) => page,
       settings: settings,

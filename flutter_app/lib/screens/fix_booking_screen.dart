@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 import '../models/models.dart';
+import '../providers/booking_provider.dart';
 
 /// Fix Booking screen matching Figma Frame 6 "Fix booking".
 /// Shows room details confirmation with description, calendar,
@@ -17,9 +19,54 @@ class FixBookingScreen extends StatefulWidget {
 
 class _FixBookingScreenState extends State<FixBookingScreen> {
   int? _selectedDay = 27;
+  bool _isBooking = false;
 
-  void _onVerify() {
-    Navigator.pushNamed(context, '/face-verify', arguments: widget.room);
+  Future<void> _onVerify() async {
+    setState(() => _isBooking = true);
+
+    // Build the booking date from selected day
+    final year = widget.room.date.year;
+    final month = widget.room.date.month;
+    final day = _selectedDay ?? widget.room.date.day;
+    final date = '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+
+    // Parse start/end time from room's timeSlot (e.g. "9:00 AM - 11:00 AM")
+    final times = widget.room.timeSlot.split(' - ');
+    final startTime = _to24h(times.isNotEmpty ? times[0].trim() : '09:00');
+    final endTime = _to24h(times.length > 1 ? times[1].trim() : '11:00');
+
+    final bookingProvider = context.read<BookingProvider>();
+    final success = await bookingProvider.createBooking(
+      roomId: widget.room.id,
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+    );
+
+    setState(() => _isBooking = false);
+
+    if (success && mounted) {
+      // Go to OTP success screen (shows "Room Booked")
+      Navigator.pushNamed(context, '/otp');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(bookingProvider.error ?? 'Booking failed. Try a different time slot.')),
+      );
+    }
+  }
+
+  /// Convert "9:00 AM" or "11:00 AM" to "09:00" or "11:00" (24h format).
+  String _to24h(String time) {
+    try {
+      final parts = time.replaceAll(RegExp(r'[APap][Mm]'), '').trim().split(':');
+      var hour = int.parse(parts[0]);
+      final min = parts.length > 1 ? int.parse(parts[1]) : 0;
+      if (time.toUpperCase().contains('PM') && hour != 12) hour += 12;
+      if (time.toUpperCase().contains('AM') && hour == 12) hour = 0;
+      return '${hour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '09:00';
+    }
   }
 
   @override
@@ -94,8 +141,9 @@ class _FixBookingScreenState extends State<FixBookingScreen> {
             right: AppSpacing.lg,
             bottom: AppSpacing.xxl,
             child: PrimaryButton(
-              text: 'Verify',
-              onPressed: _onVerify,
+              text: _isBooking ? 'Booking...' : 'Verify',
+              isDisabled: _isBooking,
+              onPressed: _isBooking ? null : _onVerify,
             ),
           ),
         ],

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
+import '../providers/auth_provider.dart';
 
 /// Login screen matching Figma Frame 3 "Login".
-/// Features orange gradient circle background, frosted card with
-/// Username/Password fields, Login button, Google sign-in, and "or" divider.
+/// Now integrates with AuthProvider for real API calls.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,12 +25,37 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _onLogin() {
-    Navigator.pushReplacementNamed(context, '/otp');
+  Future<void> _onLogin() async {
+    final auth = context.read<AuthProvider>();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter username and password')),
+      );
+      return;
+    }
+
+    final success = await auth.login(username, password);
+    if (success && mounted) {
+      // Skip OTP — go directly to home for now
+      Navigator.pushReplacementNamed(context, '/home');
+    } else if (mounted && auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.error!)),
+      );
+    }
   }
 
-  void _onGoogleLogin() {
-    Navigator.pushReplacementNamed(context, '/otp');
+  void _onGoogleLogin() async {
+    // Placeholder: In production, integrate Google Sign-In package
+    final auth = context.read<AuthProvider>();
+    await auth.login('user', 'password123');
+    if (mounted) {
+      // Skip OTP — go directly to home for now
+      Navigator.pushReplacementNamed(context, '/home');
+    }
   }
 
   @override
@@ -39,10 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // White background
           Container(color: AppColors.white),
-
-          // Orange gradient circle (background decoration)
           Positioned(
             top: size.height * 0.34,
             left: size.width * 0.16,
@@ -55,16 +78,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          // Status bar
           const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+            top: 0, left: 0, right: 0,
             child: CustomStatusBar(),
           ),
-
-          // Login card (centered)
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
@@ -77,78 +94,76 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Text('Login', style: AppTypography.headlineLarge),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Log in to access the application using your account.',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.grey),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-
-          // Google sign-in button
-          _buildGoogleButton(),
-          const SizedBox(height: AppSpacing.lg),
-
-          // "or" divider
-          _buildOrDivider(),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Username field
-          TextField(
-            controller: _usernameController,
-            decoration: const InputDecoration(hintText: 'Username'),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Password field
-          TextField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              hintText: 'Password',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.grey,
-                ),
-                onPressed: () {
-                  setState(() => _obscurePassword = !_obscurePassword);
-                },
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: AppColors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.xxl),
-
-          // Login button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _onLogin,
-              child: const Text('Login'),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Login', style: AppTypography.headlineLarge),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Log in to access the application using your account.',
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.grey),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              _buildGoogleButton(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildOrDivider(),
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: _usernameController,
+                decoration: const InputDecoration(hintText: 'Username'),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: AppColors.grey,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+                onSubmitted: (_) => _onLogin(),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: auth.isLoading ? null : _onLogin,
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                        )
+                      : const Text('Login'),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -166,24 +181,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Google icon placeholder
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Icon(
-                Icons.g_mobiledata,
-                size: 28,
-                color: AppColors.black,
-              ),
-            ),
+            const Icon(Icons.g_mobiledata, size: 28, color: AppColors.black),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              'Google',
-              style: AppTypography.labelMedium,
-            ),
+            Text('Google', style: AppTypography.labelMedium),
           ],
         ),
       ),
@@ -193,19 +193,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildOrDivider() {
     return Row(
       children: [
-        Expanded(
-          child: Container(height: 1, color: AppColors.greyLight),
-        ),
+        Expanded(child: Container(height: 1, color: AppColors.greyLight)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            'or',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.grey),
-          ),
+          child: Text('or', style: AppTypography.bodyMedium.copyWith(color: AppColors.grey)),
         ),
-        Expanded(
-          child: Container(height: 1, color: AppColors.greyLight),
-        ),
+        Expanded(child: Container(height: 1, color: AppColors.greyLight)),
       ],
     );
   }

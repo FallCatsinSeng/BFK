@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 import '../models/models.dart';
+import '../providers/providers.dart';
 
 /// Home screen matching Figma Frame 2 "home".
-/// Shows greeting, date, category tabs, room list, and bottom navigation.
+/// Now loads rooms from API via RoomProvider.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,23 +17,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedCategoryIndex = 0;
-  int _navIndex = 1; // Home is center
+  int _navIndex = 1;
 
-  List<Room> get _filteredRooms {
-    final category = MockData.roomCategories[_selectedCategoryIndex];
-    if (category == 'All') return MockData.rooms;
-    return MockData.rooms.where((room) {
-      switch (category) {
-        case 'Room':
-          return room.type == RoomType.room;
-        case 'Lab':
-          return room.type == RoomType.lab;
-        case 'Auditorium':
-          return room.type == RoomType.auditorium;
-        default:
-          return true;
-      }
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    // Load rooms and categories on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RoomProvider>().loadRooms();
+      context.read<RoomProvider>().loadCategories();
+    });
+  }
+
+  void _onCategorySelected(int index) {
+    setState(() => _selectedCategoryIndex = index);
+    final categories = context.read<RoomProvider>().categories;
+    final type = index == 0 ? null : categories[index].toLowerCase();
+    context.read<RoomProvider>().loadRooms(type: type);
   }
 
   void _onNavTap(int index) {
@@ -54,16 +56,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // White background
           Container(color: AppColors.white),
-
-          // Decorative ellipses (background)
           Positioned(
-            top: -40,
-            right: -40,
+            top: -40, right: -40,
             child: Container(
-              width: 169,
-              height: 169,
+              width: 169, height: 169,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppColors.primaryGradient.scale(0.3),
@@ -71,57 +68,39 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Positioned(
-            bottom: size.height * 0.15,
-            left: -60,
+            bottom: size.height * 0.15, left: -60,
             child: Container(
-              width: 242,
-              height: 247,
+              width: 242, height: 247,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.primaryLight.withOpacity(0.08),
               ),
             ),
           ),
-
-          // Main content
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Status bar area spacing
                 const SizedBox(height: AppSpacing.sm),
-
-                // Header section
                 _buildHeader(),
-
                 const SizedBox(height: AppSpacing.lg),
-
-                // Category tabs
-                CategoryTabs(
-                  categories: MockData.roomCategories,
-                  selectedIndex: _selectedCategoryIndex,
-                  onSelected: (index) {
-                    setState(() => _selectedCategoryIndex = index);
+                Consumer<RoomProvider>(
+                  builder: (context, roomProvider, _) {
+                    return CategoryTabs(
+                      categories: roomProvider.categories,
+                      selectedIndex: _selectedCategoryIndex,
+                      onSelected: _onCategorySelected,
+                    );
                   },
                 ),
-
                 const SizedBox(height: AppSpacing.lg),
-
-                // Room list
                 Expanded(child: _buildRoomList()),
               ],
             ),
           ),
-
-          // Bottom navigation bar
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CustomNavBar(
-              currentIndex: _navIndex,
-              onTap: _onNavTap,
-            ),
+            left: 0, right: 0, bottom: 0,
+            child: CustomNavBar(currentIndex: _navIndex, onTap: _onNavTap),
           ),
         ],
       ),
@@ -129,52 +108,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    final now = DateTime(2026, 4, 27); // Using mock date
+    final now = DateTime.now();
     final dateFormatted = DateFormat('d MMMM yyyy').format(now);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Hello, ${MockData.currentUser.username}.',
-            style: AppTypography.headlineLarge,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            dateFormatted,
-            style: AppTypography.bodyLarge.copyWith(color: AppColors.grey),
-          ),
-        ],
+      child: Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          final username = auth.user?.username ?? 'user';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Hello, $username.', style: AppTypography.headlineLarge),
+              const SizedBox(height: AppSpacing.xs),
+              Text(dateFormatted, style: AppTypography.bodyLarge.copyWith(color: AppColors.grey)),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildRoomList() {
-    final rooms = _filteredRooms;
+    return Consumer<RoomProvider>(
+      builder: (context, roomProvider, _) {
+        if (roomProvider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    if (rooms.isEmpty) {
-      return Center(
-        child: Text(
-          'No rooms found',
-          style: AppTypography.bodyLarge.copyWith(color: AppColors.grey),
-        ),
-      );
-    }
+        final rooms = roomProvider.rooms;
 
-    return ListView.separated(
-      padding: const EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        bottom: 100, // Space for nav bar
-      ),
-      itemCount: rooms.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (context, index) {
-        return RoomCard(
-          room: rooms[index],
-          onTap: () => _onRoomTap(rooms[index]),
+        if (rooms.isEmpty) {
+          return Center(
+            child: Text('No rooms found', style: AppTypography.bodyLarge.copyWith(color: AppColors.grey)),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.lg, bottom: 100),
+          itemCount: rooms.length,
+          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          itemBuilder: (context, index) {
+            return RoomCard(
+              room: rooms[index],
+              onTap: () => _onRoomTap(rooms[index]),
+            );
+          },
         );
       },
     );

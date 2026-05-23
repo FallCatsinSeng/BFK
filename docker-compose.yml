@@ -1,0 +1,73 @@
+services:
+  # Go Backend API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bfk-api
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://bfk_user:bfk_password@postgres:5432/bfk_db?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "bfk-super-secret-key-change-in-production"
+      SMTP_HOST: "smtp.gmail.com"
+      SMTP_PORT: "587"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      FROM_EMAIL: "noreply@bfk-booking.com"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bfk-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: bfk-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bfk_user
+      POSTGRES_PASSWORD: bfk_password
+      POSTGRES_DB: bfk_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bfk_user -d bfk_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - bfk-network
+
+  # Redis (for caching & rate limiting)
+  redis:
+    image: redis:7-alpine
+    container_name: bfk-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - bfk-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  bfk-network:
+    driver: bridge
