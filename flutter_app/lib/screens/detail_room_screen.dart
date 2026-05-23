@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 import '../models/models.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 /// Detail room screen matching Figma Frames 4 & 5 "detail room".
 /// Dynamically handles available and booked states based on room.status.
@@ -24,6 +27,15 @@ class _DetailRoomScreenState extends State<DetailRoomScreen> {
       Navigator.pushNamed(context, '/fix-booking', arguments: widget.room);
     }
   }
+  Future<void> _openLocation() async {
+  final Uri url = Uri.parse(
+    'https://www.google.com/maps/search/?api=1&query=STMIK+Widya+Utama+Purwokerto',
+  );
+
+  if (await canLaunchUrl(url)) {
+    await launchUrl(url);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -231,38 +243,59 @@ class _DetailRoomScreenState extends State<DetailRoomScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           // Map placeholder
-          Container(
-            width: double.infinity,
-            height: 140,
-            decoration: BoxDecoration(
-              color: AppColors.greyLight,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+          ClipRRect(
+  borderRadius: BorderRadius.circular(AppRadius.md),
+  child: SizedBox(
+    width: double.infinity,
+    height: 140,
+    child: Stack(
+      children: [
+        FlutterMap(
+          options: const MapOptions(
+            initialCenter: LatLng(-7.424990, 109.239639),
+            initialZoom: 16,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate:
+                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.app',
             ),
-            child: Stack(
-              children: [
-                const Center(
+            const MarkerLayer(
+              markers: [
+                Marker(
+                  point: LatLng(-7.424990, 109.239639),
+                  width: 40,
+                  height: 40,
                   child: Icon(
-                    Icons.map_outlined,
-                    size: 48,
-                    color: AppColors.grey,
+                    Icons.location_on,
+                    color: Colors.red,
+                    size: 40,
                   ),
-                ),
-                // See Location button overlay
-                Positioned(
-                  bottom: AppSpacing.sm,
-                  left: AppSpacing.sm,
-                  child: _buildSeeLocationButton(),
                 ),
               ],
             ),
-          ),
+          ],
+        ),
+
+        Positioned(
+          bottom: AppSpacing.sm,
+          left: AppSpacing.sm,
+          child: _buildSeeLocationButton(),
+        ),
+      ],
+    ),
+  ),
+)
         ],
       ),
     );
   }
 
   Widget _buildSeeLocationButton() {
-    return Container(
+  return GestureDetector(
+    onTap: _openLocation,
+    child: Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
@@ -289,6 +322,7 @@ class _DetailRoomScreenState extends State<DetailRoomScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
